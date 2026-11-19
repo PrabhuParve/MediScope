@@ -1,0 +1,8 @@
+check,value
+rows_before,101766
+exact_duplicates_removed,0
+rows_after,101766
+columns_after,47
+excluded_high_missingness_columns,"weight, payer_code, medical_specialty"
+remaining_missing_cells,0
+duplicate_encounter_id_count,0

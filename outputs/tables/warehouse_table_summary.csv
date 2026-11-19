@@ -1,0 +1,7 @@
+table_name,row_count
+Fact_Encounter,101766
+Dim_Patient,1
+Dim_Admission,1
+Dim_Discharge,1
+Dim_Diagnosis,1
+Dim_Medication,1
