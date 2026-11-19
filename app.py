@@ -104,341 +104,45 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 if page == "Executive Overview":
     total = len(df)
-    patients = df["patient_nbr"].nunique() if "patient_nbr" in df.columns else 0
+    patients = df["patient_nbr"].nunique() if "patient_nbr" in df else 0
+    avg_stay = df["time_in_hospital"].mean() if "time_in_hospital" in df else 0
+    early = (df["readmitted"] == "<30").mean() * 100 if "readmitted" in df else 0
 
-    avg_stay = df["time_in_hospital"].mean() if "time_in_hospital" in df.columns else 0
-    early = (df["readmitted"] == "<30").mean() * 100 if "readmitted" in df.columns else 0
-    late = (df["readmitted"] == ">30").mean() * 100 if "readmitted" in df.columns else 0
-
-    avg_meds = df["num_medications"].mean() if "num_medications" in df.columns else 0
-    avg_lab = df["num_lab_procedures"].mean() if "num_lab_procedures" in df.columns else 0
-    avg_previous = df["number_inpatient"].mean() if "number_inpatient" in df.columns else 0
-
-    # ---------------- KPI CARDS ----------------
     cols = st.columns(4)
-
     with cols[0]:
         metric("TOTAL ENCOUNTERS", f"{total:,}", "Hospital encounter records")
-
     with cols[1]:
         metric("UNIQUE PATIENTS", f"{patients:,}", "Distinct patient identifiers")
-
     with cols[2]:
         metric("AVERAGE LENGTH OF STAY", f"{avg_stay:.1f} days", "Across recorded encounters")
-
     with cols[3]:
         metric("READMITTED UNDER 30 DAYS", f"{early:.1f}%", "Share of all encounters")
 
-    cols = st.columns(4)
-
-    with cols[0]:
-        metric("READMITTED AFTER 30 DAYS", f"{late:.1f}%", "Share of all encounters")
-
-    with cols[1]:
-        metric("AVERAGE MEDICATIONS", f"{avg_meds:.1f}", "Medications per encounter")
-
-    with cols[2]:
-        metric("AVERAGE LAB PROCEDURES", f"{avg_lab:.1f}", "Procedures per encounter")
-
-    with cols[3]:
-        metric("PREVIOUS INPATIENT VISITS", f"{avg_previous:.2f}", "Average per encounter")
-
-    # ---------------- ENCOUNTER SNAPSHOT ----------------
-    section(
-        "Encounter snapshot",
-        "A quick view of readmission mix and patient age distribution."
-    )
+    section("Encounter snapshot", "A quick view of readmission mix and patient age distribution.")
 
     left, right = st.columns([1, 1.25], gap="large")
 
     with left:
-        if "readmitted" in df.columns:
-            counts = (
-                df["readmitted"]
-                .value_counts()
-                .reindex(["NO", ">30", "<30"])
-                .fillna(0)
-                .rename_axis("Status")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.pie(
-                counts,
-                names="Status",
-                values="Encounters",
-                hole=.66,
-                color="Status",
-                color_discrete_map=READMISSION_COLORS
-            )
-
-            fig.update_traces(
-                textposition="outside",
-                textinfo="percent+label",
-                marker=dict(line=dict(color="white", width=3))
-            )
-
-            fig.update_layout(
-                title="Readmission distribution",
-                showlegend=False
-            )
-
+        if "readmitted" in df:
+            counts = df["readmitted"].value_counts().reindex(["NO", ">30", "<30"]).fillna(0).rename_axis("Status").reset_index(name="Encounters")
+            fig = px.pie(counts, names="Status", values="Encounters", hole=.66,
+                         color="Status", color_discrete_map=READMISSION_COLORS)
+            fig.update_traces(textposition="outside", textinfo="percent+label", marker=dict(line=dict(color="white", width=3)))
+            fig.update_layout(title="Readmission distribution", showlegend=False)
             chart(fig, 350)
 
     with right:
-        if "age" in df.columns:
-            order = [
-                "[0-10)", "[10-20)", "[20-30)", "[30-40)",
-                "[40-50)", "[50-60)", "[60-70)", "[70-80)",
-                "[80-90)", "[90-100)"
-            ]
-
-            age = (
-                df["age"]
-                .value_counts()
-                .reindex(order)
-                .fillna(0)
-                .rename_axis("Age band")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.bar(
-                age,
-                x="Age band",
-                y="Encounters",
-                color="Encounters",
-                color_continuous_scale=["#c8dcf7", "#4776E6"]
-            )
-
-            fig.update_layout(
-                title="Encounters by age band",
-                coloraxis_showscale=False
-            )
-
+        if "age" in df:
+            order = ["[0-10)", "[10-20)", "[20-30)", "[30-40)", "[40-50)", "[50-60)", "[60-70)", "[70-80)", "[80-90)", "[90-100)"]
+            age = df["age"].value_counts().reindex(order).dropna().rename_axis("Age band").reset_index(name="Encounters")
+            fig = px.bar(age, x="Age band", y="Encounters", color="Encounters", color_continuous_scale=["#c8dcf7", "#4776E6"])
+            fig.update_layout(title="Encounters by age band", coloraxis_showscale=False)
             chart(fig, 350)
 
-    # ---------------- PATIENT DEMOGRAPHICS ----------------
-    section(
-        "Patient demographics",
-        "Distribution of encounters across gender and race."
-    )
-
-    col1, col2 = st.columns(2, gap="large")
-
-    with col1:
-        if "gender" in df.columns:
-            gender = (
-                df["gender"]
-                .fillna("Unknown")
-                .value_counts()
-                .rename_axis("Gender")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.pie(
-                gender,
-                names="Gender",
-                values="Encounters",
-                hole=.55,
-                title="Gender distribution"
-            )
-
-            chart(fig, 350)
-
-    with col2:
-        if "race" in df.columns:
-            race = (
-                df["race"]
-                .fillna("Unknown")
-                .value_counts()
-                .rename_axis("Race")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.bar(
-                race,
-                x="Encounters",
-                y="Race",
-                orientation="h",
-                color="Encounters",
-                color_continuous_scale=["#c8dcf7", "#4776E6"]
-            )
-
-            fig.update_layout(
-                title="Race distribution",
-                yaxis={"categoryorder": "total ascending"},
-                coloraxis_showscale=False
-            )
-
-            chart(fig, 350)
-
-    # ---------------- HOSPITAL ADMISSION ANALYSIS ----------------
-    section(
-        "Hospital admission analysis",
-        "Admission patterns and length of hospital stay."
-    )
-
-    col1, col2 = st.columns(2, gap="large")
-
-    with col1:
-        if "admission_type_id" in df.columns:
-            admission = (
-                df["admission_type_id"]
-                .fillna("Unknown")
-                .astype(str)
-                .value_counts()
-                .rename_axis("Admission Type")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.bar(
-                admission,
-                x="Admission Type",
-                y="Encounters",
-                color="Encounters",
-                title="Admission type distribution",
-                color_continuous_scale=["#c8dcf7", "#4776E6"]
-            )
-
-            fig.update_layout(coloraxis_showscale=False)
-            chart(fig, 350)
-
-    with col2:
-        if "time_in_hospital" in df.columns:
-            stay = (
-                df["time_in_hospital"]
-                .value_counts()
-                .sort_index()
-                .rename_axis("Hospital Stay (Days)")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.bar(
-                stay,
-                x="Hospital Stay (Days)",
-                y="Encounters",
-                title="Hospital stay distribution",
-                color="Encounters",
-                color_continuous_scale=["#c8dcf7", "#4776E6"]
-            )
-
-            fig.update_layout(coloraxis_showscale=False)
-            chart(fig, 350)
-
-    # ---------------- CLINICAL INDICATORS ----------------
-    section(
-        "Clinical indicators",
-        "Distribution of HbA1c results, glucose measurements and insulin usage."
-    )
-
-    col1, col2 = st.columns(2, gap="large")
-
-    with col1:
-        if "A1Cresult" in df.columns:
-            a1c = (
-                df["A1Cresult"]
-                .fillna("Unknown")
-                .value_counts()
-                .rename_axis("HbA1c Result")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.bar(
-                a1c,
-                x="HbA1c Result",
-                y="Encounters",
-                title="HbA1c result distribution",
-                color="Encounters",
-                color_continuous_scale=["#c8dcf7", "#4776E6"]
-            )
-
-            fig.update_layout(coloraxis_showscale=False)
-            chart(fig, 350)
-
-    with col2:
-        if "max_glu_serum" in df.columns:
-            glucose = (
-                df["max_glu_serum"]
-                .fillna("Unknown")
-                .value_counts()
-                .rename_axis("Glucose Result")
-                .reset_index(name="Encounters")
-            )
-
-            fig = px.pie(
-                glucose,
-                names="Glucose Result",
-                values="Encounters",
-                hole=.55,
-                title="Maximum glucose serum distribution"
-            )
-
-            chart(fig, 350)
-
-    if "insulin" in df.columns:
-        insulin = (
-            df["insulin"]
-            .fillna("Unknown")
-            .value_counts()
-            .rename_axis("Insulin")
-            .reset_index(name="Encounters")
-        )
-
-        fig = px.bar(
-            insulin,
-            x="Insulin",
-            y="Encounters",
-            title="Insulin usage distribution",
-            color="Encounters",
-            color_continuous_scale=["#c8dcf7", "#4776E6"]
-        )
-
-        fig.update_layout(coloraxis_showscale=False)
-        chart(fig, 350)
-
-    # ---------------- READMISSION BY AGE ----------------
-    section(
-        "Readmission patterns by age",
-        "Comparison of readmission status across patient age groups."
-    )
-
-    if "age" in df.columns and "readmitted" in df.columns:
-        age_readmission = pd.crosstab(
-            df["age"],
-            df["readmitted"]
-        ).reindex(
-            columns=["NO", ">30", "<30"],
-            fill_value=0
-        ).reset_index()
-
-        age_readmission = age_readmission.melt(
-            id_vars="age",
-            var_name="Readmission Status",
-            value_name="Encounters"
-        )
-
-        fig = px.bar(
-            age_readmission,
-            x="age",
-            y="Encounters",
-            color="Readmission Status",
-            barmode="stack",
-            title="Readmission status by age band",
-            color_discrete_map=READMISSION_COLORS
-        )
-
-        chart(fig, 400)
-
-    # ---------------- DATA PREVIEW ----------------
-    section(
-        "Data preview",
-        "First 10 rows from the active dataset."
-    )
-
+    section("Data preview", "First 10 rows from the active dataset.")
     st.dataframe(df.head(10), width="stretch", height=300)
-
 
 elif page == "Patient Trends":
     section("Patient & encounter trends", "Understand the patient mix and duration of hospital stays.")
